@@ -21,6 +21,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
 
+    // Bağımlılıkları enjekte etmek için constructor
     public JwtRequestFilter(UserDetailsService userDetailsService, JwtUtil jwtUtil) {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
@@ -29,12 +30,14 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-
+                
+        // İstekten Authorization başlığını al
         final String requestTokenHeader = request.getHeader("Authorization");
 
         String username = null;
         String jwtToken = null;
-
+                
+        // Authorization başlığının Bearer token içerip içermediğini kontrol et
         if (requestTokenHeader != null && requestTokenHeader.startsWith("Bearer ")) {
             jwtToken = requestTokenHeader.substring(7);
             try {
@@ -47,10 +50,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         } else {
             logger.warn("JWT Token does not begin with Bearer String");
         }
-
+                
+        // Kullanıcı adı çıkarıldıysa ve güvenlik bağlamında henüz kimlik doğrulama yapılmadıysa
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            // Kullanıcı ayrıntılarını kullanıcı ayrıntıları servisinden yükle
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-
+            
+            // Token'ı kullanıcı ayrıntılarıyla doğrula
             if (jwtUtil.validateToken(jwtToken, userDetails)) {
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
@@ -60,6 +66,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
             }
         }
+        // Filtre zincirine devam et
         chain.doFilter(request, response);
     }
 }
